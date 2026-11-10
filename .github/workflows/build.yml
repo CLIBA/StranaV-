@@ -1,0 +1,103 @@
+name: Build and release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    name: Build ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64
+            target: x86_64-unknown-linux-gnu
+            binary: strana
+          - name: windows-x86_64
+            target: x86_64-pc-windows-gnu
+            binary: strana.exe
+          - name: freebsd-x86_64
+            target: x86_64-unknown-freebsd
+            binary: strana
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Install Linux build dependencies
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libwayland-dev libxkbcommon-dev
+      - name: Install cross-compilation tools
+        if: matrix.target != 'x86_64-unknown-linux-gnu'
+        run: |
+          python3 -m pip install --user --break-system-packages ziglang==0.14.1
+          cargo install --locked cargo-zigbuild
+      - name: Build Linux
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: cargo build --locked --release --bin strana --target "${{ matrix.target }}"
+      - name: Cross-compile
+        if: matrix.target != 'x86_64-unknown-linux-gnu'
+        run: cargo zigbuild --locked --release --bin strana --target "${{ matrix.target }}"
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp "target/${{ matrix.target }}/release/${{ matrix.binary }}" dist/
+          tar -C dist -czf "strana-${{ matrix.name }}.tar.gz" "${{ matrix.binary }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: strana-${{ matrix.name }}
+          path: strana-${{ matrix.name }}.tar.gz
+          if-no-files-found: error
+
+  android:
+    name: Build Android
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: android
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK components
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018'
+      - name: Build APK
+        env:
+          ANDROID_NDK_ROOT: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
+        run: android/build.sh
+      - name: Package
+        run: cp target/android/strana.apk strana-android.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: strana-android
+          path: strana-android.apk
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [desktop, android]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release create "$GITHUB_REF_NAME" release/* --generate-notes

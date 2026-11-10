@@ -1,8 +1,7 @@
 /target
-# Anything extracted or decompiled from the user's copy of the game. Never commit.
+# Original and decompiled game files; extracted assets are tracked separately.
 /out
 *.win
-/assets
 /dist
 # Original game files supplied by the user.
 /StranaV.exe
