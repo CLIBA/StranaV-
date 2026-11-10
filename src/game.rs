@@ -231,9 +231,16 @@ pub enum Cont {
     Debug { inst: u32, resume: i32 },
 }
 
+pub enum AfterMessage {
+    PoliceFine(f64),
+    PosterHired(u32),
+    LeafletsEarned { inst: u32, prize: f64 },
+}
+
 pub struct Modal {
     pub text: String,
     pub question: Option<Cont>,
+    pub after: Option<AfterMessage>,
 }
 
 #[derive(Default, Clone, Copy)]
@@ -309,7 +316,11 @@ impl Game {
     // ---- GML built-ins ------------------------------------------------------------------
 
     pub fn show_message(&mut self, text: String) {
-        self.modal.push_back(Modal { text, question: None });
+        self.modal.push_back(Modal { text, question: None, after: None });
+    }
+
+    pub(crate) fn show_message_then(&mut self, text: String, after: AfterMessage) {
+        self.modal.push_back(Modal { text, question: None, after: Some(after) });
     }
 
     pub fn msg(&mut self, idx: u32) {
@@ -318,7 +329,7 @@ impl Game {
     }
 
     pub fn show_question(&mut self, text: String, cont: Cont) {
-        self.modal.push_back(Modal { text, question: Some(cont) });
+        self.modal.push_back(Modal { text, question: Some(cont), after: None });
     }
 
     pub fn goto_room(&mut self, room: usize) {
@@ -453,10 +464,7 @@ impl Game {
 
         // Alarms, alarm-number major like the runner.
         for a in 0..12 {
-            // In the original `gas` already exists on the title screen and its clock runs there,
-            // so after 24 seconds `_day` autosaved a fresh game over the player's save.
-            // The clock starts with the game itself.
-            if a == 0 && self.w.room != R_INTRO {
+            if a == 0 {
                 if let Some(gas) = self.w.gas.as_mut() {
                     if gas.alarm0 > 0 {
                         gas.alarm0 -= 1;
@@ -751,6 +759,24 @@ impl Game {
             if let Some(cont) = m.question {
                 self.resume(cont, yes);
             }
+            if let Some(after) = m.after {
+                match after {
+                    AfterMessage::PoliceFine(lose) => self.w.g.money -= lose,
+                    AfterMessage::PosterHired(inst) => {
+                        self.gas_mut().police_act += 10.0;
+                        self.upd_income();
+                        if let Some(i) = self.find_id(inst) {
+                            self.w.insts[i].police = 0.0;
+                        }
+                    }
+                    AfterMessage::LeafletsEarned { inst, prize } => {
+                        self.gas_mut().police_act += (prize / 4.0).floor() + 1.0;
+                        if let Some(i) = self.find_id(inst) {
+                            self.w.insts[i].police = 0.0;
+                        }
+                    }
+                }
+            }
         }
         if self.modal.is_empty() {
             self.apply_pending();
@@ -863,42 +889,83 @@ fn check_names<'a>(kind: &str, got: impl Iterator<Item = &'a str>, want: &[&str]
 mod tests {
     use super::*;
 
-    /// The original autosaved a fresh game over the player's save after 24 seconds on the title screen.
     #[test]
-    fn clock_starts_with_the_game() {
+    fn police_fine_is_charged_after_message() {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets");
-        let Ok(data) = crate::assets::load(&dir) else {
-            eprintln!("skipped: no extracted assets in {}", dir.display());
-            return;
-        };
-        let tmp = std::env::temp_dir().join(format!("strana-test-{}", std::process::id()));
-        let mut g = Game::new(data, tmp.join("save.json")).unwrap();
-        let run = |g: &mut Game, steps: usize| {
-            for _ in 0..steps {
-                g.modal.clear();
-                g.tick();
-            }
-        };
+        let data = crate::assets::load(&dir).expect("extracted game assets");
+        let save = std::env::temp_dir().join(format!("strana-police-test-{}.json", std::process::id()));
+        let mut g = Game::new(data, save).unwrap();
+        g.w.gas = Some(Gas::create());
+        g.w.g = Globals::initial();
+        g.w.g.money = 50.0;
+        g.gas_mut().police_act = 1.0;
+        let i = g.instance_create(0.0, 0.0, Obj::Listovki);
+        g.w.insts[i].go = 1.0;
+        g.w.insts[i].police = 101.0;
 
-        // The splash screen, then a whole in-game day's worth of time on the title screen.
+        g.ev_step(i);
+        assert_eq!(g.w.g.money, 50.0);
+        assert_eq!(g.modal.len(), 1);
+        g.input.confirm = true;
+        g.tick();
+        assert_eq!(g.w.g.money, 25.0);
+        assert!(g.modal.is_empty());
+    }
+
+    #[test]
+    fn leaflet_completion_continues_after_message() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets");
+        let data = crate::assets::load(&dir).expect("extracted game assets");
+        let save = std::env::temp_dir().join(format!("strana-leaflet-test-{}.json", std::process::id()));
+        let mut g = Game::new(data, save).unwrap();
+        g.w.gas = Some(Gas::create());
+        g.w.g = Globals::initial();
+        g.gas_mut().police_act = 0.0;
+        let i = g.instance_create(0.0, 0.0, Obj::Listovki);
+        g.w.insts[i].go = 1.0;
+        g.w.insts[i].find = 1.0;
+        g.w.insts[i].progress = 101.0;
+        g.w.insts[i].police = 8.0;
+        let income = g.w.g.income;
+
+        g.ev_step(i);
+        assert_eq!(g.gas().kleys, 1.0);
+        assert_eq!(g.gas().police_act, 0.0);
+        assert_eq!(g.w.g.income, income);
+        assert_eq!(g.w.insts[i].police, 8.0);
+        g.input.confirm = true;
+        g.tick();
+        assert_eq!(g.gas().police_act, 10.0);
+        assert_eq!(g.w.g.income, crate::scripts::get_zp(g.w.g.work) - crate::scripts::get_home_op(g.gas().home) + 3.0);
+        assert_eq!(g.w.insts[i].police, 0.0);
+    }
+
+    /// The original clock keeps running on the title screen and can overwrite a previous save.
+    #[test]
+    fn title_screen_clock_autosaves() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets");
+        let data = crate::assets::load(&dir).expect("extracted game assets");
+        let tmp = std::env::temp_dir().join(format!("strana-title-clock-test-{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let save = tmp.join("save.json");
+        std::fs::write(&save, b"previous save").unwrap();
+        let mut g = Game::new(data, save.clone()).unwrap();
+
         for _ in 0..30 * 60 {
             if g.w.room == R_INTRO {
                 break;
             }
-            run(&mut g, 1);
+            g.tick();
         }
         assert_eq!(g.w.room, R_INTRO);
-        run(&mut g, 1);
         let start = (g.gas().time, g.gas().day);
-        run(&mut g, 30 * 30);
-        assert_eq!((g.gas().time, g.gas().day), start);
-        assert!(!g.save_exists());
-
-        // In the game itself the clock runs and the new day autosaves as before.
-        g.goto_room(R_GAME);
-        run(&mut g, 26 * 30);
+        for _ in 0..30 * 30 {
+            g.tick();
+        }
         assert!(g.gas().day > start.1);
-        assert!(g.save_exists());
+        let saved: World = serde_json::from_slice(&std::fs::read(&save).unwrap()).unwrap();
+        assert_eq!(saved.room, R_INTRO);
+        assert!(saved.gas.unwrap().day > start.1);
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }

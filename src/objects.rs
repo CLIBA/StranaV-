@@ -478,8 +478,7 @@ impl Game {
                 let money = self.w.g.money;
                 let lose = (money / 2.0).ceil().clamp(5.0, 100.0).min(money);
                 let t = ps(self.data.s(txt::CAUGHT_BY_POLICE), &[string(lose)]);
-                self.show_message(t);
-                self.w.g.money -= lose;
+                self.show_message_then(t, AfterMessage::PoliceFine(lose));
             }
         }
         let inst = &mut self.w.insts[i];
@@ -488,9 +487,8 @@ impl Game {
             inst.go = 0.0;
             if truthy(inst.find) {
                 self.gas_mut().kleys += 1.0;
-                self.msg(txt::POSTER_HIRED);
-                self.gas_mut().police_act += 10.0;
-                self.upd_income();
+                let id = self.w.insts[i].id;
+                self.show_message_then(self.s(txt::POSTER_HIRED), AfterMessage::PosterHired(id));
             } else {
                 let prize = if truthy(self.gas().list_first) {
                     self.gas_mut().list_first = 0.0;
@@ -500,10 +498,9 @@ impl Game {
                 };
                 self.w.g.money += prize;
                 let t = ps(self.data.s(txt::EARNED), &[string(prize)]);
-                self.show_message(t);
-                self.gas_mut().police_act += (prize / 4.0).floor() + 1.0;
+                let id = self.w.insts[i].id;
+                self.show_message_then(t, AfterMessage::LeafletsEarned { inst: id, prize });
             }
-            self.w.insts[i].police = 0.0;
         }
     }
 
