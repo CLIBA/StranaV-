@@ -1,0 +1,39 @@
+[package]
+name = "strana"
+version = "0.1.0"
+edition = "2024"
+description = "Rust + Bevy port of «Страна возможностей» (e^cha, 2014). Needs the original data.win."
+publish = false
+
+[dependencies]
+# Only what the port uses: a window, input and one sprite showing the software-rendered frame.
+# No gamepads (libudev), clipboard, text, audio or picking, so the binary links nothing but libc;
+# X11, Wayland and the GPU driver are loaded at run time.
+bevy = { version = "0.20", default-features = false, features = [
+    "std",
+    "default_app",
+    "multi_threaded",
+    "bevy_winit",
+    "x11",
+    "wayland",
+    "bevy_render",
+    "bevy_core_pipeline",
+    "bevy_sprite_render",
+    "android-native-activity",
+] }
+# Not used directly: turns on dlopen for libwayland-client, so systems without Wayland still start.
+winit = { version = "0.30", default-features = false, features = ["wayland-dlopen"] }
+png = "0.18"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rand = "0.9"
+cab = "0.6"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+strip = true
