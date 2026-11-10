@@ -38,14 +38,16 @@ cargo build --release              # target/release/strana — самодост�
 
 ### Сборка под Windows и FreeBSD
 
-Кросс-компиляция из Linux через [zig](https://ziglang.org) и `cargo-zigbuild`:
+Кросс-компиляция Windows из Linux через [zig](https://ziglang.org) и `cargo-zigbuild`:
 
 ```sh
-rustup target add x86_64-pc-windows-gnu x86_64-unknown-freebsd
+rustup target add x86_64-pc-windows-gnu
 cargo install cargo-zigbuild               # zig должен быть в PATH
 cargo zigbuild --release --target x86_64-pc-windows-gnu    # target/x86_64-pc-windows-gnu/release/strana.exe
-cargo zigbuild --release --target x86_64-unknown-freebsd   # target/x86_64-unknown-freebsd/release/strana
 ```
+
+Для FreeBSD используйте `cargo build --release` непосредственно на FreeBSD;
+GitHub Actions собирает её в виртуальной машине FreeBSD 14.
 
 Ресурсы вшиваются так же, как в Linux-сборку. Версия для Windows открывается без консольного окна.
 Если её запустить из `cmd`, сообщения выводятся в эту консоль, а ошибки показываются в окне.
