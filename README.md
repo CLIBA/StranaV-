@@ -1,6 +1,9 @@
-# Страна возможностей — порт на Rust + Bevy
+# Страна возможностей (StranaV) — порт игры на Rust + Bevy
 
-Порт игры «Страна возможностей» (e^cha, 2014, GameMaker: Studio 1.x) на Rust и Bevy 0.20.
+Порт инди-игры «Страна возможностей» (e^cha, 2014, GameMaker: Studio 1.x) на Rust и Bevy 0.20.
+Работает на Linux, Windows, FreeBSD и Android. Готовые сборки — в [Releases](https://github.com/CLIBA/StranaV-/releases).
+
+*Strana Vozmozhnostey (Land of Opportunity) — a Russian indie game by e^cha (2014), ported from GameMaker: Studio to Rust and Bevy.*
 
 Логика игры переписана с декомпилированного GML. Ресурсы уже включены в репозиторий;
 при необходимости их можно повторно извлечь из оригинала: программа распаковывает CAB-архив
@@ -11,10 +14,10 @@
 
 | | |
 |:-:|:-:|
-| ![Титульный экран](docs/screenshots/01-title.png) | ![Главный экран](docs/screenshots/02-home.png) |
-| ![Рынок](docs/screenshots/03-market.png) | ![Газета с вакансиями](docs/screenshots/04-jobs.png) |
-| ![Свой компьютер](docs/screenshots/05-computer.png) | ![Интернет](docs/screenshots/06-internet.png) |
-| ![Программирование](docs/screenshots/07-pascal.png) | ![Карта мира](docs/screenshots/08-world.png) |
+| ![Страна возможностей — титульный экран](docs/screenshots/01-title.png) | ![Страна возможностей — главный экран](docs/screenshots/02-home.png) |
+| ![Страна возможностей — рынок](docs/screenshots/03-market.png) | ![Страна возможностей — газета с вакансиями](docs/screenshots/04-jobs.png) |
+| ![Страна возможностей — компьютер](docs/screenshots/05-computer.png) | ![Страна возможностей — интернет](docs/screenshots/06-internet.png) |
+| ![Страна возможностей — программирование](docs/screenshots/07-pascal.png) | ![Страна возможностей — карта мира](docs/screenshots/08-world.png) |
 
 ## Запуск
 
