@@ -1,7 +1,7 @@
 # Страна возможностей (StranaV) — порт игры на Rust + Bevy
 
 Порт инди-игры «Страна возможностей» (e^cha, 2014, GameMaker: Studio 1.x) на Rust и Bevy 0.20.
-Работает на Linux, Windows, FreeBSD и Android. Готовые сборки — в [Releases](https://github.com/CLIBA/StranaV-/releases).
+Работает на Linux, Windows, FreeBSD и Android. Готовые сборки — в [Releases](https://github.com/CLIBA/strana-vozmozhnostey/releases).
 
 *Strana Vozmozhnostey (Land of Opportunity) — a Russian indie game by e^cha (2014), ported from GameMaker: Studio to Rust and Bevy.*
 
